@@ -1,0 +1,5 @@
+anthropic
+streamlit
+pypdf
+python-docx
+pytest

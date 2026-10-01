@@ -1,0 +1,9 @@
+# Honesty rules (applied to every framework run)
+- Primary sources first: Companies House filings, title register, VOA, planning portals, council committee reports, EPC register, Land Registry. Agent/IM claims are hypotheses until checked.
+- Every number carries a label: SOURCED (with link/doc + page), ESTIMATE (state the basis), or UNVERIFIED.
+- Separate facts from inferences. Write "Fact:" and "Inference:" explicitly.
+- Never overstate certainty. If a source could not be read, say so; do not fill the gap.
+- Do not frame the analysis inside the seller's narrative. Question the seller's motive and the macro context.
+- Never treat a conventional exit assumption as fixed (e.g. an institutional buyer in the exit year). Test the deal without it.
+- Own mistakes plainly: if a prior assumption was flawed, say what changed.
+- Think asymmetrically: look for hard downside floors (Fukuoka Dome test) and unconventional data, not just the standard template.
