@@ -19,8 +19,8 @@ try:
     _sec = dict(st.secrets)
 except Exception:
     _sec = {}
-if _sec.get("ANTHROPIC_API_KEY") and not os.environ.get("ANTHROPIC_API_KEY"):
-    os.environ["ANTHROPIC_API_KEY"] = _sec["ANTHROPIC_API_KEY"]
+if _sec.get("OPENROUTER_API_KEY") and not os.environ.get("OPENROUTER_API_KEY"):
+    os.environ["OPENROUTER_API_KEY"] = _sec["OPENROUTER_API_KEY"]
 if _sec.get("APP_PASSWORD"):
     if st.session_state.get("authed") is not True:
         pw = st.text_input("Password", type="password")
@@ -44,8 +44,10 @@ with st.sidebar:
     key = slug(new_name) if pick == "(new)" and new_name else (pick if pick != "(new)" else None)
     st.divider()
     use_web = st.toggle("Web search", True)
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        st.warning("ANTHROPIC_API_KEY is not set. Frameworks can't run until it is.")
+    from core.runner import DEFAULT_MODEL
+    model = st.text_input("Model (OpenRouter ID)", DEFAULT_MODEL, help="Copy the exact ID from openrouter.ai/models, e.g. anthropic/claude-sonnet-4.5")
+    if not os.environ.get("OPENROUTER_API_KEY"):
+        st.warning("OPENROUTER_API_KEY is not set. Frameworks can't run until it is.")
 
 if not key:
     st.info("Name a new deal (or open one) in the sidebar to start.")
@@ -86,7 +88,7 @@ with tab_run:
             if fid not in chosen: continue
             with st.spinner(f"Running: {title}"):
                 try:
-                    results[fid] = run_framework(deal, docs, fid, text, honesty, prior=results, use_web=use_web)
+                    results[fid] = run_framework(deal, docs, fid, text, honesty, prior=results, use_web=use_web, model=model)
                 except Exception as e:
                     results[fid] = {"summary": f"FAILED: {e}", "findings": [], "error": True}
             save(key, state)

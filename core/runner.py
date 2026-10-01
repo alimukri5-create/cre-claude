@@ -3,9 +3,9 @@
 The model does research and judgement. It does NOT do the deal arithmetic: that is core/calc.py.
 """
 import json, os, re
-import anthropic
+from openai import OpenAI  # OpenRouter speaks the OpenAI protocol
 
-MODEL = os.environ.get("CRE_MODEL", "claude-sonnet-5-5")
+DEFAULT_MODEL = os.environ.get("CRE_MODEL", "anthropic/claude-sonnet-4.5")  # change in the app sidebar; exact IDs at openrouter.ai/models
 
 OUTPUT_SPEC = """
 Return your answer as a single JSON object (no prose outside it) with this shape:
@@ -25,10 +25,10 @@ Never invent a source. If you could not verify something, label it UNVERIFIED.
 
 
 def _client():
-    key = os.environ.get("ANTHROPIC_API_KEY")
+    key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
-        raise RuntimeError("Set ANTHROPIC_API_KEY (console.anthropic.com) before running a framework.")
-    return anthropic.Anthropic(api_key=key)
+        raise RuntimeError("Set OPENROUTER_API_KEY (openrouter.ai/keys) before running a framework.")
+    return OpenAI(api_key=key, base_url="https://openrouter.ai/api/v1")
 
 
 def build_prompt(deal: dict, docs: dict, framework_text: str, prior: dict | None, honesty: str) -> str:
@@ -59,16 +59,15 @@ def parse_json(text: str) -> dict:
         return {"summary": text.strip(), "findings": [], "parse_error": True}
 
 
-def run_framework(deal, docs, fw_id, fw_text, honesty, prior=None, use_web=True, max_searches=8):
-    kwargs = {}
-    if use_web:
-        kwargs["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": max_searches}]
-    resp = _client().messages.create(
-        model=MODEL, max_tokens=8000,
+def run_framework(deal, docs, fw_id, fw_text, honesty, prior=None, use_web=True, max_searches=8, model=None):
+    extra = {"plugins": [{"id": "web", "max_results": max_searches}]} if use_web else {}
+    resp = _client().chat.completions.create(
+        model=model or DEFAULT_MODEL, max_tokens=8000,
         messages=[{"role": "user", "content": build_prompt(deal, docs, fw_text, prior, honesty)}],
-        **kwargs,
+        extra_body=extra,
     )
-    text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+    text = resp.choices[0].message.content or ""
     result = parse_json(text)
     result["framework"] = fw_id
+    result["model"] = model or DEFAULT_MODEL
     return result

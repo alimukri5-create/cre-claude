@@ -1,4 +1,4 @@
-anthropic
+openai
 streamlit
 pypdf
 python-docx
