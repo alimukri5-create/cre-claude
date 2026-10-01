@@ -1,0 +1,17 @@
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+from core.runner import clean, parse_json
+
+
+def test_clean_strips_cite_tags_everywhere():
+    d = {"summary": 'a <cite index="1-2">quoted</cite> b', "findings": [{"claim": '<cite index="58-10">X | 99.41 %</cite>'}]}
+    out = clean(d)
+    assert "<cite" not in str(out) and "</cite>" not in str(out)
+    assert out["findings"][0]["claim"] == "X | 99.41 %"
+
+def test_clean_leaves_numbers_alone():
+    assert clean({"n": 5, "l": [1, "x"]}) == {"n": 5, "l": [1, "x"]}
+
+def test_parse_json_survives_garbage():
+    assert parse_json("no json here")["parse_error"] is True
+    assert parse_json('x {"summary": "ok"} y')["summary"] == "ok"

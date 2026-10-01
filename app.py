@@ -96,9 +96,11 @@ with tab_run:
         r = results.get(fid)
         if not r: continue
         with st.expander(title, expanded=False):
+            if r.get("truncated") or r.get("parse_error"):
+                st.warning("This answer was cut off or came back in the wrong format, so findings may be missing. Re-run it, or pick a model with a larger output limit.")
             st.write(r.get("summary", ""))
             for f in r.get("findings", []):
-                st.markdown(f"**{f.get('label','?')}** · {f.get('kind','?')} · {f.get('confidence','?')} — {f.get('claim','')}  \n<small>{f.get('source','')}</small>", unsafe_allow_html=True)
+                st.markdown(f"**{f.get('label','?')}** · {f.get('kind','?')} · {f.get('source_type','?')} · {f.get('confidence','?')} — {f.get('claim','')}  \n<small>{f.get('source','')}</small>", unsafe_allow_html=True)
             if r.get("red_flags"): st.error("\n".join(f"• {x}" for x in r["red_flags"]))
             if r.get("calculator_inputs"): st.json(r["calculator_inputs"])
             if r.get("could_not_access"): st.warning("Could not access: " + "; ".join(r["could_not_access"]))

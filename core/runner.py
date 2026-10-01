@@ -13,14 +13,19 @@ Return your answer as a single JSON object (no prose outside it) with this shape
   "summary": "3-6 sentence plain-English conclusion for this framework",
   "findings": [
     {"claim": "...", "kind": "fact|inference|estimate", "label": "SOURCED|ESTIMATE|UNVERIFIED",
-     "source": "URL or document name + page, or empty", "confidence": "high|medium|low"}
+     "source": "URL or document name + page, or empty", "source_type": "primary|aggregator|news", "confidence": "high|medium|low"}
   ],
   "calculator_inputs": {},      // numbers the calculator needs, each with its own label; empty if none
   "red_flags": ["..."],
   "data_room_requests": ["questions to put to the vendor; prefix deal-critical ones with *"],
   "could_not_access": ["sources you needed but could not read"]
 }
-Never invent a source. If you could not verify something, label it UNVERIFIED.
+Label rules:
+- SOURCED = the claim is stated directly in a source you actually read; put the source in "source" and set "source_type" to primary (Companies House/Land Registry/VOA/council/IM or data-room document), aggregator, or news.
+- A claim with "kind":"inference" must NEVER be labelled SOURCED. Label it ESTIMATE (reasoning on sourced facts) or UNVERIFIED.
+- Prefer primary sources. If you only saw an aggregator, say so in "source_type" and lower the confidence.
+- Do not write "almost certainly", "clearly" or similar unless a source says it.
+- Never invent a source. If you could not verify something, label it UNVERIFIED.
 """
 
 
@@ -49,6 +54,20 @@ def build_prompt(deal: dict, docs: dict, framework_text: str, prior: dict | None
     return "\n\n".join(parts)
 
 
+_CITE = re.compile(r"</?cite[^>]*>")
+
+
+def clean(obj):
+    """Remove <cite index=...> tags that web-search models leave inside strings."""
+    if isinstance(obj, str):
+        return _CITE.sub("", obj).strip()
+    if isinstance(obj, list):
+        return [clean(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: clean(v) for k, v in obj.items()}
+    return obj
+
+
 def parse_json(text: str) -> dict:
     m = re.search(r"\{.*\}", text, re.S)
     if not m:
@@ -62,12 +81,15 @@ def parse_json(text: str) -> dict:
 def run_framework(deal, docs, fw_id, fw_text, honesty, prior=None, use_web=True, max_searches=8, model=None):
     extra = {"plugins": [{"id": "web", "max_results": max_searches}]} if use_web else {}
     resp = _client().chat.completions.create(
-        model=model or DEFAULT_MODEL, max_tokens=8000,
+        model=model or DEFAULT_MODEL, max_tokens=16000,
         messages=[{"role": "user", "content": build_prompt(deal, docs, fw_text, prior, honesty)}],
         extra_body=extra,
     )
-    text = resp.choices[0].message.content or ""
-    result = parse_json(text)
+    choice = resp.choices[0]
+    text = choice.message.content or ""
+    result = clean(parse_json(text))
+    if getattr(choice, "finish_reason", None) == "length":
+        result["truncated"] = True
     result["framework"] = fw_id
     result["model"] = model or DEFAULT_MODEL
     return result

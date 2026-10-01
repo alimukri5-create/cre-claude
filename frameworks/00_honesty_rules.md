@@ -7,3 +7,5 @@
 - Never treat a conventional exit assumption as fixed (e.g. an institutional buyer in the exit year). Test the deal without it.
 - Own mistakes plainly: if a prior assumption was flawed, say what changed.
 - Think asymmetrically: look for hard downside floors (Fukuoka Dome test) and unconventional data, not just the standard template.
+- Do not state a conclusion as near-certain unless a source says so. Say what would change your mind.
+- If a primary document (e.g. filed accounts) exists but you could not read it, say that first, and say which findings would change once it is read.
