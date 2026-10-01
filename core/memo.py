@@ -1,8 +1,19 @@
-def build_memo(deal: dict, results: dict, calc_summary: str = "") -> str:
+def build_memo(deal: dict, results: dict, calc_summary: str = "", investigation: dict = None) -> str:
     """Assemble framework results into one markdown memo. Pure formatting, no model call."""
     L = [f"# Due diligence memo: {deal.get('name','(unnamed deal)')}", ""]
     if calc_summary:
         L += ["## Calculator output", calc_summary, ""]
+    inv = investigation or {}
+    if inv.get("findings") or inv.get("summary"):
+        L += ["## Investigation", inv.get("summary", ""), ""]
+        if inv.get("next_steps"):
+            L += ["**Next steps:** " + inv["next_steps"], ""]
+        for f in inv.get("findings", []):
+            L.append(f"- **{f['label']}** / {f['kind']}: {f['claim']} ({f['source']})" if f.get("source") else f"- **{f['label']}** / {f['kind']}: {f['claim']}")
+        open_l = [l for l in inv.get("leads", []) if l.get("status") == "open"]
+        if open_l:
+            L += ["", "_Open leads:_", *[f"- P{l['priority']}: {l['text']}" for l in open_l]]
+        L.append("")
     flags = [f for r in results.values() for f in r.get("red_flags", [])]
     if flags:
         L += ["## Red flags", *[f"- {f}" for f in flags], ""]

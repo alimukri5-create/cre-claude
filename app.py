@@ -61,7 +61,8 @@ if not key:
 state = load(key) or {"deal": {"name": new_name or key}, "docs": {}, "results": {}, "calc": {}}
 deal, docs, results = state["deal"], state["docs"], state["results"]
 
-tab_deal, tab_run, tab_calc, tab_memo = st.tabs(["1 Deal & data room", "2 Run frameworks", "3 Calculator", "4 Memo"])
+state.setdefault("investigation", {})
+tab_deal, tab_inv, tab_run, tab_calc, tab_memo = st.tabs(["1 Deal & data room", "2 Investigate", "3 Run frameworks", "4 Calculator", "5 Memo"])
 
 # ---------- 1. deal + data room ----------
 with tab_deal:
@@ -145,7 +146,70 @@ with tab_deal:
         bad = [n for n, t in docs.items() if t.startswith("[COULD NOT READ")]
         if bad: st.error("Could not read: " + ", ".join(bad))
 
-# ---------- 2. run frameworks ----------
+# ---------- 2. investigate (lead-following agent) ----------
+with tab_inv:
+    from core.agent import Board, Investigator
+    from core.frameworks import list_frameworks as _lf
+    board = Board.from_dict(state["investigation"])
+    st.caption("The investigator works like a detective: each finding raises leads, and it pursues them with web search, page reading, "
+               "Companies House and your documents. Run it, read the trail, steer it, run it again. Findings are checked in code: "
+               "an inference can never be marked SOURCED.")
+    DEFAULT_GOAL = ("Investigate this deal like a detective. First identify who the seller really is and why they are selling. "
+                    "Then the tenant's true covenant (the correct legal entity, its accounts, group guarantees, debt maturities). "
+                    "Then the neighbourhood: what has been let, sold, left empty or redeveloped in nearby buildings, planning applications, "
+                    "council reports and local market evidence. Then anything that could break the price: lease issues, planning, "
+                    "environment, macro. Follow every lead that could change what we should pay.")
+    goal = st.text_area("What should it find out?", board.goal or DEFAULT_GOAL, height=170)
+    steer = st.text_input("Steer (optional)", "", placeholder="e.g. focus on who owns the building next door")
+    c1, c2 = st.columns([1, 3])
+    max_steps = c1.number_input("Max steps this run", 3, 80, 25, help="One step = one model turn with tool calls. Each costs tokens.")
+    label = "Continue investigating" if board.runs else "Start investigating"
+    if c2.button(label, type="primary", disabled=not os.environ.get("OPENROUTER_API_KEY")):
+        from core.runner import _client
+        checklists = "\n\n".join(t for _, _, t in _lf())
+        live = st.status("Investigating...", expanded=True)
+
+        def on_event(e):
+            if e["type"] == "tool":
+                live.write(f"Step {e['step']} · **{e['name']}** {json.dumps(e['args'])[:160]}  \n<small>{e['preview'][:200]}</small>", unsafe_allow_html=True)
+            elif e["type"] == "finding":
+                f = e["finding"]; live.write(f"✔ **{f['label']}** {f['claim'][:200]}")
+            elif e["type"] == "lead":
+                l = e["lead"]; live.write(f"➜ Lead P{l['priority']}: {l['text'][:200]}")
+            state["investigation"] = board.to_dict(); state["docs"] = docs
+            save(key, state)
+
+        try:
+            from core.runner import _client
+            invg = Investigator(deal, docs, board, _client(), model, use_web=use_web, checklists=checklists,
+                                honesty=honesty_rules(), on_event=on_event)
+            invg.run(goal, steer=steer, max_steps=int(max_steps))
+            live.update(label="Finished" if invg.finished else "Paused at step limit", state="complete")
+        except Exception as ex:
+            live.update(label=f"Stopped: {ex}", state="error")
+        state["investigation"] = board.to_dict(); state["docs"] = docs
+        save(key, state)
+        st.rerun()
+    if board.runs:
+        st.caption(f"{board.steps} steps · {board.tokens:,} tokens · {len(board.findings)} findings · {len(board.open_leads())} open leads")
+        if board.summary: st.info(board.summary)
+        if board.next_steps: st.write("**Next steps:** " + board.next_steps)
+        if board.open_leads():
+            st.subheader("Open leads")
+            for l in sorted(board.open_leads(), key=lambda x: x["priority"]):
+                st.markdown(f"**P{l['priority']}** {l['text']}  \n<small>{l['why']}</small>", unsafe_allow_html=True)
+        with st.expander(f"Findings ({len(board.findings)})", expanded=True):
+            for f in board.findings:
+                st.markdown(f"**{f['label']}** · {f['kind']} · {f['source_type']} · {f['confidence']} — {f['claim']}  \n<small>{f['source']}</small>", unsafe_allow_html=True)
+        closed = [l for l in board.leads if l["status"] == "closed"]
+        with st.expander(f"Closed leads ({len(closed)})"):
+            for l in closed: st.markdown(f"**L{l['id']}** {l['text']} → {l['outcome']}")
+        with st.expander(f"Trail ({len(board.trail)} tool calls)"):
+            for t in board.trail: st.markdown(f"{t['step']}. `{t['tool']}` {t['args']}  \n<small>{t['preview']}</small>", unsafe_allow_html=True)
+        if st.button("Clear investigation"):
+            state["investigation"] = {}; save(key, state); st.rerun()
+
+# ---------- 3. run frameworks ----------
 with tab_run:
     fws = list_frameworks()
     st.caption("Each framework is a plain text file in /frameworks. Edit the file to change what it asks.")
@@ -175,7 +239,7 @@ with tab_run:
             if r.get("calculator_inputs"): st.json(r["calculator_inputs"])
             if r.get("could_not_access"): st.warning("Could not access: " + "; ".join(r["could_not_access"]))
 
-# ---------- 3. calculator ----------
+# ---------- 4. calculator ----------
 with tab_calc:
     st.caption("All arithmetic here is plain code (core/calc.py), tested. The model supplies judgement inputs; it never computes returns.")
     c = state["calc"]
@@ -236,9 +300,9 @@ with tab_calc:
     state["calc"] = dict(price=price, rent=rent, yrs=yrs, sdlt=sdlt, fees=fees, target=target, deposit=deposit,
                          land=land, empty=empty, scenarios=[dict(r_) for r_ in rows], summary=calc_summary)
 
-# ---------- 4. memo ----------
+# ---------- 5. memo ----------
 with tab_memo:
-    memo = build_memo(deal, results, state["calc"].get("summary", ""))
+    memo = build_memo(deal, results, state["calc"].get("summary", ""), state.get("investigation"))
     st.markdown(memo)
     st.download_button("Download memo (.md)", memo, file_name=f"{key}-memo.md")
 
