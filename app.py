@@ -122,18 +122,25 @@ with tab_deal:
         over = [f"{n} ({len(t):,} chars)" for n, t in docs.items() if len(t) > doc_limit]
         if over:
             st.warning("Longer than the limit in the sidebar, so the END will be cut off when sent to the model: " + "; ".join(over))
-        with st.expander("Preview and search the documents (verify what the model sees)"):
-            pick_doc = st.selectbox("Document", list(docs), key="pv_doc")
-            term = st.text_input("Find text (e.g. 'July 2027', 'guarantee', 'Note 19')", key="pv_term")
-            txt = docs[pick_doc]
+        with st.expander("Search all documents (verify what the model sees)"):
+            st.caption("Searches every document at once and ignores capital letters and extra spaces. Notes in filed accounts are often just a number on its own line (e.g. '21' then 'Events after the reporting date'), so search for the words, not 'Note 21'.")
+            term = st.text_input("Find text (e.g. 'dividend', 'events after', 'guarant', '2027')", key="pv_term")
             if term:
                 import re as _re
-                hits = [m.start() for m in _re.finditer(_re.escape(term), txt, _re.I)]
-                st.caption(f"{len(hits)} match(es) in {len(txt):,} characters")
-                for h_ in hits[:15]:
-                    st.code(txt[max(0, h_ - 300): h_ + 500], language=None)
+                pat = _re.compile(r"\s+".join(_re.escape(w) for w in term.split()), _re.I)
+                rows_ = []
+                for n_, t_ in docs.items():
+                    rows_.append({"document": n_, "matches": len(pat.findall(t_)), "characters": len(t_)})
+                st.table(rows_)
+                for n_, t_ in docs.items():
+                    ms = list(pat.finditer(t_))
+                    if not ms: continue
+                    st.markdown(f"**{n_}** — first {min(len(ms), 8)} of {len(ms)}")
+                    for m_ in ms[:8]:
+                        st.code(t_[max(0, m_.start() - 250): m_.end() + 450], language=None)
             else:
-                st.code(txt[:4000], language=None)
+                pick_doc = st.selectbox("Or just read a document from the top", list(docs), key="pv_doc")
+                st.code(docs[pick_doc][:4000], language=None)
         bad = [n for n, t in docs.items() if t.startswith("[COULD NOT READ")]
         if bad: st.error("Could not read: " + ", ".join(bad))
 
