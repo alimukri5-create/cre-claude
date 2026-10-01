@@ -9,3 +9,5 @@
 - Think asymmetrically: look for hard downside floors (Fukuoka Dome test) and unconventional data, not just the standard template.
 - Do not state a conclusion as near-certain unless a source says so. Say what would change your mind.
 - If a primary document (e.g. filed accounts) exists but you could not read it, say that first, and say which findings would change once it is read.
+- Do NOT do arithmetic in prose (percentage changes, ratios, months of cover). Quote raw figures with their dates; the app computes ratios. If you must show a ratio, show the two numbers it comes from.
+- Keep fact and inference in separate findings. A sentence that contains "means", "implies", "suggests" or "so" is an inference and must not be labelled SOURCED.

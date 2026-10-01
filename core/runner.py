@@ -24,6 +24,7 @@ Label rules:
 - SOURCED = the claim is stated directly in a source you actually read; put the source in "source" and set "source_type" to primary (Companies House/Land Registry/VOA/council/IM or data-room document), aggregator, or news.
 - A claim with "kind":"inference" must NEVER be labelled SOURCED. Label it ESTIMATE (reasoning on sourced facts) or UNVERIFIED.
 - Prefer primary sources. If you only saw an aggregator, say so in "source_type" and lower the confidence.
+- Never calculate percentages, ratios or months of cover yourself: give the raw figures and dates and say what they imply in words. The app does the arithmetic.
 - Do not write "almost certainly", "clearly" or similar unless a source says it.
 - Never invent a source. If you could not verify something, label it UNVERIFIED.
 """
