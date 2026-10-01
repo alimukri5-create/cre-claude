@@ -138,6 +138,8 @@ with tab_run:
         r = results.get(fid)
         if not r: continue
         with st.expander(title, expanded=False):
+            if r.get("model"):
+                st.caption(f"Run with model: {r['model']}")
             if r.get("truncated") or r.get("parse_error"):
                 st.warning("This answer was cut off or came back in the wrong format, so findings may be missing. Re-run it, or pick a model with a larger output limit.")
             st.write(r.get("summary", ""))
