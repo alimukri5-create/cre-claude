@@ -15,3 +15,10 @@ def test_clean_leaves_numbers_alone():
 def test_parse_json_survives_garbage():
     assert parse_json("no json here")["parse_error"] is True
     assert parse_json('x {"summary": "ok"} y')["summary"] == "ok"
+
+
+def test_prompt_contains_todays_date():
+    import datetime
+    from core.runner import build_prompt
+    p = build_prompt({"name": "x"}, {}, "# fw", None, "rules")
+    assert datetime.date.today().isoformat() in p

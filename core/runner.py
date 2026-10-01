@@ -2,7 +2,7 @@
 
 The model does research and judgement. It does NOT do the deal arithmetic: that is core/calc.py.
 """
-import json, os, re
+import datetime, json, os, re
 from openai import OpenAI  # OpenRouter speaks the OpenAI protocol
 
 DEFAULT_MODEL = os.environ.get("CRE_MODEL", "anthropic/claude-sonnet-4.5")  # change in the app sidebar; exact IDs at openrouter.ai/models
@@ -42,6 +42,7 @@ def build_prompt(deal: dict, docs: dict, framework_text: str, prior: dict | None
         "You are an investigative due-diligence analyst for a UK commercial property buyer. "
         "The buyer wants asymmetric, evidence-led analysis, not a standard institutional template.",
         "## Honesty rules\n" + honesty,
+        f"Today's date is {datetime.date.today().isoformat()}. Compare every deadline, expiry and filing date you read against it, and say plainly which have already passed and what that means.",
         "## Deal\n" + json.dumps(deal, indent=2),
     ]
     if docs:
