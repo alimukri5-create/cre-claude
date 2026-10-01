@@ -37,7 +37,17 @@ def _client():
     return OpenAI(api_key=key, base_url="https://openrouter.ai/api/v1")
 
 
-def build_prompt(deal: dict, docs: dict, framework_text: str, prior: dict | None, honesty: str) -> str:
+DOC_LIMIT = 400_000  # characters per document sent to the model (~100k tokens). Raise for long accounts; costs more.
+
+
+def fit(text: str, limit: int) -> str:
+    """Never silently truncate: if text is cut, say so inside the text the model reads."""
+    if len(text) <= limit:
+        return text
+    return text[:limit] + f"\n[TRUNCATED: showing first {limit:,} of {len(text):,} characters. Later notes are NOT visible. Say so if you need them.]"
+
+
+def build_prompt(deal: dict, docs: dict, framework_text: str, prior: dict | None, honesty: str, doc_limit: int = DOC_LIMIT) -> str:
     parts = [
         "You are an investigative due-diligence analyst for a UK commercial property buyer. "
         "The buyer wants asymmetric, evidence-led analysis, not a standard institutional template.",
@@ -47,7 +57,7 @@ def build_prompt(deal: dict, docs: dict, framework_text: str, prior: dict | None
     ]
     if docs:
         parts.append("## Data room documents (extracted text)\n" + "\n\n".join(
-            f"### {n}\n{t[:60000]}" for n, t in docs.items()))
+            f"### {n}\n{fit(t, doc_limit)}" for n, t in docs.items()))
     if prior:
         parts.append("## Findings so far from earlier frameworks (summaries)\n" + "\n".join(
             f"- {k}: {v.get('summary','')}" for k, v in prior.items()))
@@ -80,11 +90,11 @@ def parse_json(text: str) -> dict:
         return {"summary": text.strip(), "findings": [], "parse_error": True}
 
 
-def run_framework(deal, docs, fw_id, fw_text, honesty, prior=None, use_web=True, max_searches=8, model=None):
+def run_framework(deal, docs, fw_id, fw_text, honesty, prior=None, use_web=True, max_searches=8, model=None, doc_limit=DOC_LIMIT):
     extra = {"plugins": [{"id": "web", "max_results": max_searches}]} if use_web else {}
     resp = _client().chat.completions.create(
         model=model or DEFAULT_MODEL, max_tokens=16000,
-        messages=[{"role": "user", "content": build_prompt(deal, docs, fw_text, prior, honesty)}],
+        messages=[{"role": "user", "content": build_prompt(deal, docs, fw_text, prior, honesty, doc_limit)}],
         extra_body=extra,
     )
     choice = resp.choices[0]

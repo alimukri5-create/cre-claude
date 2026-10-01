@@ -46,6 +46,9 @@ with st.sidebar:
     key = slug(new_name) if pick == "(new)" and new_name else (pick if pick != "(new)" else None)
     st.divider()
     use_web = st.toggle("Web search", True)
+    from core.runner import DOC_LIMIT
+    doc_limit = st.number_input("Max characters per document sent to the model", 20_000, 4_000_000, DOC_LIMIT, 50_000,
+                                help="Long accounts keep their loan notes and related-party notes near the end. Raise this if you see a TRUNCATED warning. Higher = more cost per run and needs a model with a big context window.")
     from core.runner import DEFAULT_MODEL
     model = st.text_input("Model (OpenRouter ID)", DEFAULT_MODEL, help="Copy the exact ID from openrouter.ai/models, e.g. anthropic/claude-sonnet-4.5")
     if not os.environ.get("OPENROUTER_API_KEY"):
@@ -116,6 +119,21 @@ with tab_deal:
         docs[u.name] = to_text(u.name, u.getvalue())
     if docs:
         st.caption(f"{len(docs)} document(s) loaded: " + ", ".join(f"{n} ({len(t):,} chars)" for n, t in docs.items()))
+        over = [f"{n} ({len(t):,} chars)" for n, t in docs.items() if len(t) > doc_limit]
+        if over:
+            st.warning("Longer than the limit in the sidebar, so the END will be cut off when sent to the model: " + "; ".join(over))
+        with st.expander("Preview and search the documents (verify what the model sees)"):
+            pick_doc = st.selectbox("Document", list(docs), key="pv_doc")
+            term = st.text_input("Find text (e.g. 'July 2027', 'guarantee', 'Note 19')", key="pv_term")
+            txt = docs[pick_doc]
+            if term:
+                import re as _re
+                hits = [m.start() for m in _re.finditer(_re.escape(term), txt, _re.I)]
+                st.caption(f"{len(hits)} match(es) in {len(txt):,} characters")
+                for h_ in hits[:15]:
+                    st.code(txt[max(0, h_ - 300): h_ + 500], language=None)
+            else:
+                st.code(txt[:4000], language=None)
         bad = [n for n, t in docs.items() if t.startswith("[COULD NOT READ")]
         if bad: st.error("Could not read: " + ", ".join(bad))
 
@@ -130,7 +148,7 @@ with tab_run:
             if fid not in chosen: continue
             with st.spinner(f"Running: {title}"):
                 try:
-                    results[fid] = run_framework(deal, docs, fid, text, honesty, prior=results, use_web=use_web, model=model)
+                    results[fid] = run_framework(deal, docs, fid, text, honesty, prior=results, use_web=use_web, model=model, doc_limit=int(doc_limit))
                 except Exception as e:
                     results[fid] = {"summary": f"FAILED: {e}", "findings": [], "error": True}
             save(key, state)

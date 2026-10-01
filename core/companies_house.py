@@ -127,7 +127,7 @@ def _addr(a):
     return ", ".join(str(a[k]) for k in ("address_line_1", "address_line_2", "locality", "postal_code") if a and a.get(k))
 
 
-def build_dossier(number: str, accounts_chars: int = 90_000, filings: int = 30) -> dict:
+def build_dossier(number: str, accounts_chars: int = 1_500_000, filings: int = 30) -> dict:
     """Returns {"name":..., "number":..., "text":..., "notes":[...]} for one company."""
     n = norm_number(number)
     prof = _json(f"/company/{n}")

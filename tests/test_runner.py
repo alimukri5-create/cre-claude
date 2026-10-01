@@ -22,3 +22,17 @@ def test_prompt_contains_todays_date():
     from core.runner import build_prompt
     p = build_prompt({"name": "x"}, {}, "# fw", None, "rules")
     assert datetime.date.today().isoformat() in p
+
+
+def test_fit_never_truncates_silently():
+    from core.runner import fit
+    assert fit("abc", 10) == "abc"
+    out = fit("x" * 100, 10)
+    assert out.startswith("x" * 10) and "TRUNCATED" in out and "100" in out
+
+def test_prompt_marks_truncated_docs():
+    from core.runner import build_prompt
+    p = build_prompt({"name": "x"}, {"long.txt": "y" * 500}, "# fw", None, "rules", doc_limit=100)
+    assert "TRUNCATED" in p
+    p2 = build_prompt({"name": "x"}, {"short.txt": "y" * 50}, "# fw", None, "rules", doc_limit=100)
+    assert "TRUNCATED" not in p2
