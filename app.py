@@ -73,6 +73,7 @@ with tab_deal:
     deal["seller"] = c2.text_input("Seller / agent", deal.get("seller", ""))
     deal["asking_price"] = c2.text_input("Asking / guide price", deal.get("asking_price", ""))
     deal["lease_summary"] = c2.text_area("Lease summary (rent, expiry, breaks, reviews, 1954 Act)", deal.get("lease_summary", ""), height=100)
+    deal["signals"] = st.text_area("Live signals you've gathered yourself (LinkedIn headcount trends and open jobs, news, website changes, anything you've seen). Paste as plain text with dates.", deal.get("signals", ""), height=120)
     deal["notes"] = st.text_area("Anything else the model should know (agent claims, your hunches, what the seller said)", deal.get("notes", ""), height=100)
 
     # ---- Companies House ----
