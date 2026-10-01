@@ -3,3 +3,4 @@ streamlit
 pypdf
 python-docx
 pytest
+requests

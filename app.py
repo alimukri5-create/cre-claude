@@ -21,6 +21,8 @@ except Exception:
     _sec = {}
 if _sec.get("OPENROUTER_API_KEY") and not os.environ.get("OPENROUTER_API_KEY"):
     os.environ["OPENROUTER_API_KEY"] = _sec["OPENROUTER_API_KEY"]
+if _sec.get("COMPANIES_HOUSE_API_KEY") and not os.environ.get("COMPANIES_HOUSE_API_KEY"):
+    os.environ["COMPANIES_HOUSE_API_KEY"] = _sec["COMPANIES_HOUSE_API_KEY"]
 if _sec.get("APP_PASSWORD"):
     if st.session_state.get("authed") is not True:
         pw = st.text_input("Password", type="password")
@@ -69,6 +71,46 @@ with tab_deal:
     deal["asking_price"] = c2.text_input("Asking / guide price", deal.get("asking_price", ""))
     deal["lease_summary"] = c2.text_area("Lease summary (rent, expiry, breaks, reviews, 1954 Act)", deal.get("lease_summary", ""), height=100)
     deal["notes"] = st.text_area("Anything else the model should know (agent claims, your hunches, what the seller said)", deal.get("notes", ""), height=100)
+
+    # ---- Companies House ----
+    st.subheader("Companies House (primary source)")
+    st.caption("Search a company by name or number. The dossier (officers, owners, charges, filing history and the full text of the latest filed accounts) is added to the data room, so every framework reads it.")
+    if not os.environ.get("COMPANIES_HOUSE_API_KEY"):
+        st.info("Add COMPANIES_HOUSE_API_KEY to your Streamlit secrets to turn this on.")
+    else:
+        from core import companies_house as ch
+        q = st.text_input("Company name or number", key="ch_q", placeholder="05047798  or  Brompton Technology")
+        c1_, c2_ = st.columns([1, 3])
+        if c1_.button("Look up", disabled=not q):
+            try:
+                if ch.looks_like_number(q):
+                    with st.spinner("Reading Companies House filings (this can take a minute)..."):
+                        d = ch.build_dossier(q)
+                    docs[f"CH dossier - {d['name']} ({d['number']})"] = d["text"]
+                    st.session_state["ch_hits"], st.session_state["ch_notes"] = [], d["notes"]
+                    st.success(f"Added dossier for {d['name']} ({d['number']}).")
+                else:
+                    st.session_state["ch_hits"] = ch.search(q)
+                    st.session_state["ch_notes"] = []
+            except ch.CHError as e:
+                st.error(str(e))
+        hits = st.session_state.get("ch_hits") or []
+        if hits:
+            labels = [f"{h['name']} ({h['number']}) - {h['status']} - {h['address']}" for h in hits]
+            sel = st.selectbox("Pick the right company", labels, key="ch_pick")
+            if st.button("Fetch dossier for selected"):
+                h = hits[labels.index(sel)]
+                try:
+                    with st.spinner("Reading Companies House filings (this can take a minute)..."):
+                        d = ch.build_dossier(h["number"])
+                    docs[f"CH dossier - {d['name']} ({d['number']})"] = d["text"]
+                    st.session_state["ch_hits"], st.session_state["ch_notes"] = [], d["notes"]
+                    st.success(f"Added dossier for {d['name']} ({d['number']}).")
+                except ch.CHError as e:
+                    st.error(str(e))
+        for n_ in st.session_state.get("ch_notes") or []:
+            st.warning(n_)
+
     ups = st.file_uploader("Data room / IM / accounts (PDF, DOCX, TXT)", accept_multiple_files=True)
     for u in ups or []:
         docs[u.name] = to_text(u.name, u.getvalue())
